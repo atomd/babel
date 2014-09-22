@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 from setuptools import setup
+from os.path import join, dirname, abspath
 
 sys.path.append(os.path.join('doc', 'common'))
 try:
@@ -12,22 +13,39 @@ except ImportError:
     build_doc = test_doc = None
 
 
-from distutils.cmd import Command
+from setuptools import Command
+from setuptools.command.install import install as _install
+from setuptools.command.develop import develop as _develop
+
+
+def post_run():
+    path = join(dirname(abspath(__file__)), 'scripts', 'download_import_cldr.py')
+    c = subprocess.Popen([sys.executable, path])
+    c.wait()
+
+
+class _mixin(object):
+
+    def run(self):
+        super(_mixin, self).run()
+        post_run()
 
 
 class import_cldr(Command):
+
     description = 'imports and converts the CLDR data'
     user_options = []
 
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
     def run(self):
-        c = subprocess.Popen([sys.executable, 'scripts/download_import_cldr.py'])
-        c.wait()
+        post_run()
+
+
+class install(_mixin, _install):
+    pass
+
+
+class develop(_mixin, _develop):
+    pass
 
 
 setup(
@@ -63,8 +81,13 @@ setup(
         'pytz>=0a',
     ],
 
-    cmdclass={'build_doc': build_doc, 'test_doc': test_doc,
-              'import_cldr': import_cldr},
+    cmdclass={
+        'build_doc': build_doc,
+        'test_doc': test_doc,
+        'import_cldr': import_cldr,
+        'install': install,
+        'develop': develop,
+    },
 
     zip_safe=False,
 
